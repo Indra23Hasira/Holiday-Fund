@@ -248,6 +248,12 @@
 <div class="modalOverlay" id="modalKeluarga">
   <div class="modal">
     <h3>Kelola Keluarga</h3>
+    <div class="field" style="border-bottom:1px solid var(--paper-line);padding-bottom:16px;margin-bottom:16px;">
+      <label>Bulan program tabungan mulai</label>
+      <input type="month" id="fBulanMulai">
+      <div style="font-size:11.5px;color:#8a7f6d;margin-top:5px;">Bulan sebelum ini tidak akan dianggap nunggak di kartu setoran.</div>
+      <button type="button" class="btnPrimary" id="btnSimpanBulanMulai" style="margin-top:10px;">Simpan</button>
+    </div>
     <div id="keluargaListWrap" style="margin-bottom:18px;"></div>
     <form id="formKeluarga">
       <div class="field">
@@ -275,7 +281,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
-  onSnapshot, query, orderBy, serverTimestamp
+  onSnapshot, query, orderBy, serverTimestamp, setDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // ======= GANTI DENGAN KONFIGURASI FIREBASE PROJECT KAMU =======
@@ -300,7 +306,9 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 let keluargaList = [];
 let setoranList = [];
 let selectedYear = new Date().getFullYear();
-let unsubKeluarga = null, unsubSetoran = null;
+let bulanMulai = null; // format "YYYY-MM" — bulan program tabungan mulai, sebelum ini tidak dihitung nunggak
+let unsubKeluarga = null, unsubSetoran = null, unsubPengaturan = null;
+const SETTINGS_DOC = () => doc(db,'pengaturan','umum');
 
 // ---------- AUTH ----------
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -328,10 +336,16 @@ onAuthStateChanged(auth, (user) => {
     document.getElementById('appScreen').style.display = 'none';
     if (unsubKeluarga) unsubKeluarga();
     if (unsubSetoran) unsubSetoran();
+    if (unsubPengaturan) unsubPengaturan();
   }
 });
 
 function startListeners(){
+  unsubPengaturan = onSnapshot(SETTINGS_DOC(), (snap) => {
+    bulanMulai = snap.exists() ? (snap.data().bulanMulai || null) : null;
+    document.getElementById('fBulanMulai').value = bulanMulai || '';
+    renderAll();
+  });
   const qKeluarga = query(collection(db,'keluarga'), orderBy('urutan','asc'));
   unsubKeluarga = onSnapshot(qKeluarga, (snap) => {
     keluargaList = snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -386,6 +400,7 @@ function renderCards(){
     for(let m=1;m<=12;m++){
       const mk = monthKey(selectedYear, m);
       if (mk > currentMonthKey) continue;
+      if (bulanMulai && mk < bulanMulai) continue;
       const paid = setoranList.some(s => s.keluargaId===k.id && (s.bulanCover||[]).includes(mk));
       if (!paid) nunggak++;
     }
@@ -417,6 +432,8 @@ function renderMatrix(){
         cells += `<td><span class="stamp" title="Lunas — diterima ${tgl}, ${formatRupiah(match.jumlah)}">✓</span></td>`;
       } else if (mk > currentMonthKey){
         cells += `<td><span class="dotFuture" title="Belum jatuh tempo"></span></td>`;
+      } else if (bulanMulai && mk < bulanMulai){
+        cells += `<td><span class="dotFuture" title="Sebelum program mulai"></span></td>`;
       } else {
         cells += `<td><span class="dotNunggak" title="Belum bayar">✕</span></td>`;
       }
@@ -604,6 +621,12 @@ function renderKeluargaManageList(){
       <button class="iconBtn danger" onclick="window.__deleteKeluarga('${k.id}')">Hapus</button>
     </div>`).join('');
 }
+
+document.getElementById('btnSimpanBulanMulai').addEventListener('click', async () => {
+  const val = document.getElementById('fBulanMulai').value; // "YYYY-MM" or ""
+  await setDoc(SETTINGS_DOC(), { bulanMulai: val || null }, { merge: true });
+  showToast(val ? 'Bulan mulai disimpan.' : 'Bulan mulai dikosongkan.');
+});
 
 document.getElementById('formKeluarga').addEventListener('submit', async (e) => {
   e.preventDefault();

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buku Tabungan Keluarga</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1B3A4B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#2B2420;
+    --cover:#1B3A4B;
+    --cover-dark:#12262F;
+    --paper:#F6F2E9;
+    --paper-raised:#FBF8F1;
+    --paper-line:#E4DCC8;
+    --brass:#B8863B;
+    --brass-dark:#8C6529;
+    --ledger-red:#A13D3D;
+    --ledger-red-bg:#F4E4E1;
+    --sage:#3F6650;
+    --sage-bg:#E8EFE6;
+    --shadow:rgba(27,58,75,.18);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;}
+  .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  h1,h2,h3,.display{font-family:'Fraunces',serif;}
+  button{font-family:inherit;cursor:pointer;}
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--paper-line);border-radius:4px;}
+
+  /* ---------- LOGIN ---------- */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+    radial-gradient(circle at 20% 20%, #234A5E 0%, var(--cover) 45%, var(--cover-dark) 100%);
+    padding:24px;}
+  .passbook-cover{width:100%;max-width:380px;background:var(--cover);border-radius:6px;
+    padding:40px 32px;box-shadow:0 30px 60px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+    position:relative;}
+  .passbook-cover::before{content:"";position:absolute;left:18px;top:18px;right:18px;bottom:18px;
+    border:1px solid rgba(184,134,59,.35);border-radius:3px;pointer-events:none;}
+  .passbook-cover h1{color:var(--brass);font-size:26px;letter-spacing:.5px;margin:0 0 4px;text-align:center;}
+  .passbook-cover .sub{color:rgba(255,255,255,.55);text-align:center;font-size:13px;margin-bottom:32px;letter-spacing:1.5px;text-transform:uppercase;}
+  .passbook-cover label{display:block;color:rgba(255,255,255,.75);font-size:12px;margin:16px 0 6px;letter-spacing:.5px;}
+  .passbook-cover input{width:100%;padding:11px 12px;border-radius:4px;border:1px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.06);color:#fff;font-size:14px;}
+  .passbook-cover input:focus{outline:none;border-color:var(--brass);}
+  .loginBtn{width:100%;margin-top:26px;padding:12px;background:var(--brass);color:var(--cover-dark);
+    border:none;border-radius:4px;font-weight:600;font-size:14px;letter-spacing:.5px;}
+  .loginBtn:hover{background:#c8985a;}
+  .loginErr{color:#e0a1a1;font-size:12.5px;margin-top:10px;min-height:16px;}
+
+  /* ---------- APP SHELL ---------- */
+  #appScreen{display:none;max-width:1080px;margin:0 auto;padding:28px 20px 80px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+  .topbar .brand{display:flex;align-items:center;gap:12px;}
+  .stampMini{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #cc9c5f, var(--brass) 60%, var(--brass-dark));
+    display:flex;align-items:center;justify-content:center;color:var(--cover-dark);font-family:'Fraunces',serif;font-weight:700;}
+  .topbar h1{font-size:20px;margin:0;color:var(--cover);}
+  .topbar .yearSel{display:flex;align-items:center;gap:8px;}
+  .yearSel select{padding:7px 10px;border-radius:4px;border:1px solid var(--paper-line);background:var(--paper-raised);font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .logoutBtn{background:none;border:1px solid var(--paper-line);padding:7px 14px;border-radius:4px;font-size:13px;color:var(--ink);}
+  .logoutBtn:hover{background:var(--paper-raised);}
+
+  .stitchLine{height:1px;background:repeating-linear-gradient(90deg,var(--paper-line) 0 6px, transparent 6px 12px);margin:0 0 24px;}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px;}
+  .card{background:var(--paper-raised);border:1px solid var(--paper-line);border-radius:8px;padding:16px 18px;}
+  .card .label{font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:#8a7f6d;margin-bottom:6px;}
+  .card .value{font-size:22px;font-weight:600;color:var(--cover);}
+  .card .value.red{color:var(--ledger-red);}
+  .card .value.sage{color:var(--sage);}
+
+  .section{background:var(--paper-raised);border:1px solid var(--paper-line);border-radius:10px;padding:22px;margin-bottom:22px;}
+  .section h2{font-size:17px;margin:0 0 4px;color:var(--cover);}
+  .section .sectionSub{font-size:12.5px;color:#8a7f6d;margin-bottom:18px;}
+
+  .addBtn{background:var(--sage);color:#fff;border:none;padding:9px 16px;border-radius:5px;font-size:13px;font-weight:600;letter-spacing:.3px;}
+  .addBtn:hover{background:#345642;}
+  .sectionHead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+
+  /* ---------- LEDGER MATRIX ---------- */
+  .matrixWrap{overflow-x:auto;}
+  table.matrix{border-collapse:collapse;width:100%;min-width:760px;}
+  table.matrix th, table.matrix td{border-bottom:1px solid var(--paper-line);padding:10px 8px;text-align:center;font-size:12.5px;}
+  table.matrix th{color:#8a7f6d;font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.4px;}
+  table.matrix td.namaCell, table.matrix th.namaCell{text-align:left;font-family:'Fraunces',serif;font-size:14px;color:var(--ink);font-weight:500;padding-left:6px;position:sticky;left:0;background:var(--paper-raised);min-width:140px;}
+  table.matrix tr:hover td{background:#FAF6EC;}
+  table.matrix tr:hover td.namaCell{background:#F2EBDA;}
+
+  .stamp{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 35% 30%, #cc9c5f, var(--brass) 65%, var(--brass-dark));
+    color:#fff;font-size:13px;font-weight:700;border:2px dashed rgba(255,255,255,.5);transform:rotate(-6deg);
+    box-shadow:0 2px 4px rgba(140,101,41,.35);cursor:default;}
+  .dotFuture{width:8px;height:8px;border-radius:50%;background:var(--paper-line);display:inline-block;}
+  .dotNunggak{width:26px;height:26px;border-radius:50%;border:2px solid var(--ledger-red);color:var(--ledger-red);
+    display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--ledger-red-bg);}
+
+  /* ---------- RIWAYAT ---------- */
+  .riwayatItem{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--paper-line);}
+  .riwayatItem:last-child{border-bottom:none;}
+  .riwayatItem .left{flex:1;}
+  .riwayatItem .keluargaNama{font-weight:600;font-size:14px;color:var(--cover);}
+  .riwayatItem .meta{font-size:12px;color:#8a7f6d;margin-top:2px;}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+  .chip{background:var(--sage-bg);color:var(--sage);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
+  .riwayatItem .amount{font-weight:600;color:var(--ink);font-size:15px;white-space:nowrap;}
+  .riwayatItem .actions{display:flex;gap:6px;margin-top:8px;}
+  .iconBtn{border:1px solid var(--paper-line);background:none;border-radius:4px;padding:4px 9px;font-size:11.5px;color:#8a7f6d;}
+  .iconBtn:hover{background:var(--paper);}
+  .iconBtn.danger:hover{color:var(--ledger-red);border-color:var(--ledger-red);}
+  .emptyState{text-align:center;padding:30px 10px;color:#a89d89;font-size:13.5px;}
+
+  /* ---------- MODAL ---------- */
+  .modalOverlay{display:none;position:fixed;inset:0;background:rgba(18,38,47,.55);z-index:50;align-items:center;justify-content:center;padding:16px;}
+  .modal{background:var(--paper-raised);border-radius:10px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;padding:26px;}
+  .modal h3{margin:0 0 18px;color:var(--cover);}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12.5px;color:#6b6152;margin-bottom:5px;font-weight:600;}
+  .field input, .field select, .field textarea{width:100%;padding:9px 11px;border:1px solid var(--paper-line);border-radius:5px;font-size:14px;font-family:inherit;background:#fff;}
+  .field textarea{resize:vertical;min-height:50px;}
+  .monthGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .monthChk{display:flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid var(--paper-line);border-radius:5px;padding:6px 8px;background:#fff;}
+  .monthChk input{width:auto;}
+  .monthChk.paid{opacity:.45;}
+  .modalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  .btnGhost{background:none;border:1px solid var(--paper-line);padding:9px 16px;border-radius:5px;font-size:13px;}
+  .btnPrimary{background:var(--sage);color:#fff;border:none;padding:9px 18px;border-radius:5px;font-size:13px;font-weight:600;}
+  .formErr{color:var(--ledger-red);font-size:12.5px;margin-top:8px;min-height:14px;}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--cover-dark);color:#fff;
+    padding:11px 20px;border-radius:6px;font-size:13.5px;z-index:60;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+
+  canvas#growthChart{max-height:220px;}
+
+  @media(max-width:600px){
+    .topbar{flex-direction:column;align-items:flex-start;gap:12px;}
+    .monthGrid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="loginScreen">
+  <div class="passbook-cover">
+    <h1>Buku Tabungan<br>Keluarga</h1>
+    <div class="sub">Khusus Bendahara</div>
+    <form id="loginForm">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" required autocomplete="username">
+      <label for="loginPass">Kata sandi</label>
+      <input type="password" id="loginPass" required autocomplete="current-password">
+      <button type="submit" class="loginBtn">Masuk</button>
+      <div class="loginErr" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="appScreen">
+  <div class="topbar">
+    <div class="brand">
+      <div class="stampMini">TK</div>
+      <h1>Buku Tabungan Keluarga</h1>
+    </div>
+    <div class="yearSel">
+      <select id="yearSelect"></select>
+      <button class="logoutBtn" id="logoutBtn">Keluar</button>
+    </div>
+  </div>
+  <div class="stitchLine"></div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Total tabungan (semua waktu)</div><div class="value num" id="cardTotal">Rp0</div></div>
+    <div class="card"><div class="label">Keluarga aktif</div><div class="value" id="cardKeluarga">0</div></div>
+    <div class="card"><div class="label">Setoran tahun ini</div><div class="value num sage" id="cardTahunIni">Rp0</div></div>
+    <div class="card"><div class="label">Bulan tertunggak</div><div class="value red" id="cardNunggak">0</div></div>
+  </div>
+
+  <div class="section">
+    <div class="sectionHead">
+      <div><h2>Kartu Setoran</h2><div class="sectionSub">Status iuran tiap keluarga per bulan, tahun berjalan</div></div>
+      <button class="addBtn" id="btnTambahSetoran">+ Catat Setoran</button>
+    </div>
+    <div class="matrixWrap">
+      <table class="matrix" id="matrixTable"></table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Pertumbuhan Dana Masuk</h2>
+    <div class="sectionSub">Total dana diterima per bulan, tahun berjalan</div>
+    <canvas id="growthChart"></canvas>
+  </div>
+
+  <div class="section">
+    <div class="sectionHead">
+      <div><h2>Riwayat Setoran</h2><div class="sectionSub">Transaksi terbaru</div></div>
+      <button class="addBtn" id="btnKelolaKeluarga" style="background:var(--cover);">Kelola Keluarga</button>
+    </div>
+    <div id="riwayatList"></div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: SETORAN ===================== -->
+<div class="modalOverlay" id="modalSetoran">
+  <div class="modal">
+    <h3 id="modalSetoranTitle">Catat Setoran</h3>
+    <form id="formSetoran">
+      <input type="hidden" id="setoranId">
+      <div class="field">
+        <label>Keluarga</label>
+        <select id="fKeluarga" required></select>
+      </div>
+      <div class="field">
+        <label>Tanggal dana diterima</label>
+        <input type="date" id="fTanggal" required>
+      </div>
+      <div class="field">
+        <label>Jumlah diterima (Rp)</label>
+        <input type="number" id="fJumlah" min="1" step="1000" required>
+      </div>
+      <div class="field">
+        <label>Untuk bulan (bisa lebih dari satu, misal bayar rapel)</label>
+        <div class="monthGrid" id="monthGrid"></div>
+      </div>
+      <div class="field">
+        <label>Catatan (opsional)</label>
+        <textarea id="fCatatan" placeholder="mis. transfer BCA, titip cash ke Bu Rani"></textarea>
+      </div>
+      <div class="formErr" id="formErr"></div>
+      <div class="modalActions">
+        <button type="button" class="btnGhost" id="btnBatalSetoran">Batal</button>
+        <button type="submit" class="btnPrimary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL: KELUARGA ===================== -->
+<div class="modalOverlay" id="modalKeluarga">
+  <div class="modal">
+    <h3>Kelola Keluarga</h3>
+    <div id="keluargaListWrap" style="margin-bottom:18px;"></div>
+    <form id="formKeluarga">
+      <div class="field">
+        <label>Nama keluarga baru</label>
+        <input type="text" id="fNamaKeluarga" placeholder="mis. Keluarga Budi &amp; Rani" required>
+      </div>
+      <div class="field">
+        <label>Iuran per bulan (Rp)</label>
+        <input type="number" id="fIuranKeluarga" value="200000" min="0" step="10000" required>
+      </div>
+      <div class="modalActions">
+        <button type="button" class="btnGhost" id="btnTutupKeluarga">Tutup</button>
+        <button type="submit" class="btnPrimary">Tambah Keluarga</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
+  onSnapshot, query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ======= GANTI DENGAN KONFIGURASI FIREBASE PROJECT KAMU =======
+const firebaseConfig = {
+  apiKey: "AIzaSyAw8y2Xoi2gwTlFnR5IaL8rzcb0wSsyNgc",
+  authDomain: "holiday-fund.firebaseapp.com",
+  projectId: "holiday-fund",
+  storageBucket: "holiday-fund.firebasestorage.app",
+  messagingSenderId: "12422113232",
+  appId: "1:12422113232:web:bfc9a6d33079a0a254fbd5",
+  measurementId: "G-8N4WHWKSQF"
+};
+// ================================================================
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const BULAN_NAMA = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const todayISO = () => new Date().toISOString().slice(0,10);
+
+let keluargaList = [];
+let setoranList = [];
+let selectedYear = new Date().getFullYear();
+let unsubKeluarga = null, unsubSetoran = null;
+
+// ---------- AUTH ----------
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (err) {
+    errEl.textContent = 'Email atau kata sandi salah.';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    startListeners();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+    if (unsubKeluarga) unsubKeluarga();
+    if (unsubSetoran) unsubSetoran();
+  }
+});
+
+function startListeners(){
+  const qKeluarga = query(collection(db,'keluarga'), orderBy('urutan','asc'));
+  unsubKeluarga = onSnapshot(qKeluarga, (snap) => {
+    keluargaList = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderAll();
+  });
+  const qSetoran = query(collection(db,'setoran'), orderBy('tanggalTerima','desc'));
+  unsubSetoran = onSnapshot(qSetoran, (snap) => {
+    setoranList = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderAll();
+  });
+}
+
+// ---------- YEAR SELECT ----------
+function populateYearSelect(){
+  const sel = document.getElementById('yearSelect');
+  const years = new Set([new Date().getFullYear()]);
+  setoranList.forEach(s => { if (s.tanggalTerima) years.add(parseInt(s.tanggalTerima.slice(0,4))); });
+  const sorted = Array.from(years).sort((a,b)=>b-a);
+  sel.innerHTML = sorted.map(y => `<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`).join('');
+}
+document.getElementById('yearSelect').addEventListener('change', (e) => {
+  selectedYear = parseInt(e.target.value);
+  renderAll();
+});
+
+// ---------- HELPERS ----------
+function formatRupiah(n){
+  return 'Rp' + Math.round(n||0).toLocaleString('id-ID');
+}
+function monthKey(year, monthIdx1to12){
+  return `${year}-${String(monthIdx1to12).padStart(2,'0')}`;
+}
+
+// ---------- RENDER ----------
+function renderAll(){
+  populateYearSelect();
+  renderCards();
+  renderMatrix();
+  renderChart();
+  renderRiwayat();
+}
+
+function renderCards(){
+  const totalAll = setoranList.reduce((sum,s)=>sum+(s.jumlah||0),0);
+  const tahunIni = setoranList.filter(s=>s.tanggalTerima && s.tanggalTerima.startsWith(String(selectedYear)))
+    .reduce((sum,s)=>sum+(s.jumlah||0),0);
+
+  const now = new Date();
+  const currentMonthKey = monthKey(now.getFullYear(), now.getMonth()+1);
+  let nunggak = 0;
+  keluargaList.forEach(k => {
+    for(let m=1;m<=12;m++){
+      const mk = monthKey(selectedYear, m);
+      if (mk > currentMonthKey) continue;
+      const paid = setoranList.some(s => s.keluargaId===k.id && (s.bulanCover||[]).includes(mk));
+      if (!paid) nunggak++;
+    }
+  });
+
+  document.getElementById('cardTotal').textContent = formatRupiah(totalAll);
+  document.getElementById('cardKeluarga').textContent = keluargaList.length;
+  document.getElementById('cardTahunIni').textContent = formatRupiah(tahunIni);
+  document.getElementById('cardNunggak').textContent = nunggak;
+}
+
+function renderMatrix(){
+  const table = document.getElementById('matrixTable');
+  if (keluargaList.length === 0){
+    table.innerHTML = `<tr><td class="emptyState">Belum ada keluarga. Klik "Kelola Keluarga" untuk menambahkan.</td></tr>`;
+    return;
+  }
+  const now = new Date();
+  const currentMonthKey = monthKey(now.getFullYear(), now.getMonth()+1);
+
+  let head = `<tr><th class="namaCell">Keluarga</th>${BULAN_NAMA.map(b=>`<th>${b}</th>`).join('')}</tr>`;
+  let rows = keluargaList.map(k => {
+    let cells = '';
+    for(let m=1;m<=12;m++){
+      const mk = monthKey(selectedYear, m);
+      const match = setoranList.find(s => s.keluargaId===k.id && (s.bulanCover||[]).includes(mk));
+      if (match){
+        const tgl = match.tanggalTerima ? match.tanggalTerima.split('-').reverse().join('/') : '';
+        cells += `<td><span class="stamp" title="Lunas — diterima ${tgl}, ${formatRupiah(match.jumlah)}">✓</span></td>`;
+      } else if (mk > currentMonthKey){
+        cells += `<td><span class="dotFuture" title="Belum jatuh tempo"></span></td>`;
+      } else {
+        cells += `<td><span class="dotNunggak" title="Belum bayar">✕</span></td>`;
+      }
+    }
+    return `<tr><td class="namaCell">${k.nama}</td>${cells}</tr>`;
+  }).join('');
+  table.innerHTML = head + rows;
+}
+
+let chartInstance = null;
+function renderChart(){
+  const ctx = document.getElementById('growthChart');
+  const monthlyTotals = new Array(12).fill(0);
+  setoranList.forEach(s => {
+    if (s.tanggalTerima && s.tanggalTerima.startsWith(String(selectedYear))){
+      const m = parseInt(s.tanggalTerima.slice(5,7)) - 1;
+      monthlyTotals[m] += (s.jumlah||0);
+    }
+  });
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: BULAN_NAMA,
+      datasets: [{
+        label: 'Dana masuk',
+        data: monthlyTotals,
+        backgroundColor: '#B8863B',
+        borderRadius: 4,
+        maxBarThickness: 34
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display:false }, tooltip: { callbacks: { label: (ctx)=> formatRupiah(ctx.parsed.y) } } },
+      scales: {
+        y: { ticks: { callback: (v)=> formatRupiah(v) }, grid:{ color:'#E4DCC8' } },
+        x: { grid: { display:false } }
+      }
+    }
+  });
+}
+
+function renderRiwayat(){
+  const wrap = document.getElementById('riwayatList');
+  if (setoranList.length === 0){
+    wrap.innerHTML = `<div class="emptyState">Belum ada setoran tercatat. Klik "+ Catat Setoran" untuk mulai.</div>`;
+    return;
+  }
+  wrap.innerHTML = setoranList.map(s => {
+    const k = keluargaList.find(k=>k.id===s.keluargaId);
+    const namaK = k ? k.nama : '(keluarga dihapus)';
+    const tgl = s.tanggalTerima ? s.tanggalTerima.split('-').reverse().join('/') : '-';
+    const chips = (s.bulanCover||[]).map(mk => {
+      const [y,m] = mk.split('-');
+      return `<span class="chip">${BULAN_NAMA[parseInt(m)-1]} ${y}</span>`;
+    }).join('');
+    return `
+      <div class="riwayatItem">
+        <div class="left">
+          <div class="keluargaNama">${namaK}</div>
+          <div class="meta">Diterima ${tgl}${s.catatan ? ' · '+s.catatan : ''}</div>
+          <div class="chips">${chips}</div>
+          <div class="actions">
+            <button class="iconBtn" onclick="window.__editSetoran('${s.id}')">Edit</button>
+            <button class="iconBtn danger" onclick="window.__deleteSetoran('${s.id}')">Hapus</button>
+          </div>
+        </div>
+        <div class="amount num">${formatRupiah(s.jumlah)}</div>
+      </div>`;
+  }).join('');
+}
+
+// ---------- MODAL: SETORAN ----------
+const modalSetoran = document.getElementById('modalSetoran');
+document.getElementById('btnTambahSetoran').addEventListener('click', () => openSetoranModal());
+document.getElementById('btnBatalSetoran').addEventListener('click', () => modalSetoran.style.display='none');
+
+function populateKeluargaSelect(){
+  const sel = document.getElementById('fKeluarga');
+  sel.innerHTML = keluargaList.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('');
+}
+
+function populateMonthGrid(keluargaId){
+  const grid = document.getElementById('monthGrid');
+  const paidSet = new Set();
+  setoranList.filter(s=>s.keluargaId===keluargaId).forEach(s=>(s.bulanCover||[]).forEach(mk=>paidSet.add(mk)));
+  grid.innerHTML = '';
+  for(let m=1;m<=12;m++){
+    const mk = monthKey(selectedYear, m);
+    const isPaid = paidSet.has(mk);
+    const div = document.createElement('label');
+    div.className = 'monthChk' + (isPaid ? ' paid' : '');
+    div.innerHTML = `<input type="checkbox" value="${mk}"> ${BULAN_NAMA[m-1]}`;
+    grid.appendChild(div);
+  }
+}
+
+document.getElementById('fKeluarga').addEventListener('change', (e) => {
+  populateMonthGrid(e.target.value);
+});
+
+function openSetoranModal(editData){
+  document.getElementById('formErr').textContent = '';
+  document.getElementById('formSetoran').reset();
+  populateKeluargaSelect();
+  if (keluargaList.length === 0){
+    document.getElementById('formErr').textContent = 'Tambahkan keluarga dulu lewat "Kelola Keluarga".';
+  }
+  document.getElementById('modalSetoranTitle').textContent = editData ? 'Ubah Setoran' : 'Catat Setoran';
+  document.getElementById('setoranId').value = editData ? editData.id : '';
+  document.getElementById('fTanggal').value = editData ? editData.tanggalTerima : todayISO();
+  document.getElementById('fJumlah').value = editData ? editData.jumlah : (keluargaList[0]?.iuran || 200000);
+  document.getElementById('fCatatan').value = editData ? (editData.catatan||'') : '';
+  const keluargaId = editData ? editData.keluargaId : (keluargaList[0]?.id || '');
+  document.getElementById('fKeluarga').value = keluargaId;
+  populateMonthGrid(keluargaId);
+  if (editData){
+    setTimeout(()=>{
+      document.querySelectorAll('#monthGrid input[type=checkbox]').forEach(cb=>{
+        if ((editData.bulanCover||[]).includes(cb.value)) cb.checked = true;
+      });
+    },0);
+  }
+  modalSetoran.style.display = 'flex';
+}
+
+document.getElementById('formSetoran').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('formErr');
+  const id = document.getElementById('setoranId').value;
+  const keluargaId = document.getElementById('fKeluarga').value;
+  const tanggalTerima = document.getElementById('fTanggal').value;
+  const jumlah = parseInt(document.getElementById('fJumlah').value);
+  const catatan = document.getElementById('fCatatan').value.trim();
+  const bulanCover = Array.from(document.querySelectorAll('#monthGrid input:checked')).map(cb=>cb.value);
+
+  if (!keluargaId){ errEl.textContent = 'Pilih keluarga terlebih dahulu.'; return; }
+  if (bulanCover.length === 0){ errEl.textContent = 'Pilih minimal satu bulan yang dicover.'; return; }
+
+  try {
+    if (id){
+      await updateDoc(doc(db,'setoran',id), { keluargaId, tanggalTerima, jumlah, catatan, bulanCover });
+      showToast('Setoran diperbarui.');
+    } else {
+      await addDoc(collection(db,'setoran'), { keluargaId, tanggalTerima, jumlah, catatan, bulanCover, createdAt: serverTimestamp() });
+      showToast('Setoran tercatat.');
+    }
+    modalSetoran.style.display = 'none';
+  } catch (err){
+    errEl.textContent = 'Gagal menyimpan: ' + err.message;
+  }
+});
+
+window.__editSetoran = (id) => {
+  const s = setoranList.find(x=>x.id===id);
+  if (s) openSetoranModal(s);
+};
+window.__deleteSetoran = async (id) => {
+  if (!confirm('Hapus setoran ini?')) return;
+  await deleteDoc(doc(db,'setoran',id));
+  showToast('Setoran dihapus.');
+};
+
+// ---------- MODAL: KELUARGA ----------
+const modalKeluarga = document.getElementById('modalKeluarga');
+document.getElementById('btnKelolaKeluarga').addEventListener('click', () => {
+  renderKeluargaManageList();
+  modalKeluarga.style.display = 'flex';
+});
+document.getElementById('btnTutupKeluarga').addEventListener('click', () => modalKeluarga.style.display='none');
+
+function renderKeluargaManageList(){
+  const wrap = document.getElementById('keluargaListWrap');
+  if (keluargaList.length===0){
+    wrap.innerHTML = '<div class="emptyState">Belum ada keluarga.</div>';
+    return;
+  }
+  wrap.innerHTML = keluargaList.map(k=>`
+    <div class="riwayatItem" style="padding:9px 0;">
+      <div class="left">
+        <div class="keluargaNama" style="font-size:13.5px;">${k.nama}</div>
+        <div class="meta">Iuran ${formatRupiah(k.iuran||200000)}/bulan</div>
+      </div>
+      <button class="iconBtn danger" onclick="window.__deleteKeluarga('${k.id}')">Hapus</button>
+    </div>`).join('');
+}
+
+document.getElementById('formKeluarga').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nama = document.getElementById('fNamaKeluarga').value.trim();
+  const iuran = parseInt(document.getElementById('fIuranKeluarga').value);
+  if (!nama) return;
+  const urutan = keluargaList.length ? Math.max(...keluargaList.map(k=>k.urutan||0)) + 1 : 1;
+  await addDoc(collection(db,'keluarga'), { nama, iuran, urutan });
+  document.getElementById('formKeluarga').reset();
+  document.getElementById('fIuranKeluarga').value = 200000;
+  renderKeluargaManageList();
+  showToast('Keluarga ditambahkan.');
+});
+
+window.__deleteKeluarga = async (id) => {
+  if (!confirm('Hapus keluarga ini? Riwayat setoran terkait tidak akan otomatis terhapus.')) return;
+  await deleteDoc(doc(db,'keluarga',id));
+  renderKeluargaManageList();
+  showToast('Keluarga dihapus.');
+};
+
+// ---------- TOAST ----------
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.style.display='none'; }, 2600);
+}
+
+// ---------- PWA ----------
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

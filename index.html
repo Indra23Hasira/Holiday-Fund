@@ -196,7 +196,7 @@
 
   <div class="section">
     <h2>Pertumbuhan Dana Masuk</h2>
-    <div class="sectionSub">Total dana diterima per bulan, tahun berjalan</div>
+    <div class="sectionSub">Total setoran per bulan tanggungan, tahun berjalan</div>
     <canvas id="growthChart"></canvas>
   </div>
 
@@ -448,10 +448,15 @@ function renderChart(){
   const ctx = document.getElementById('growthChart');
   const monthlyTotals = new Array(12).fill(0);
   setoranList.forEach(s => {
-    if (s.tanggalTerima && s.tanggalTerima.startsWith(String(selectedYear))){
-      const m = parseInt(s.tanggalTerima.slice(5,7)) - 1;
-      monthlyTotals[m] += (s.jumlah||0);
-    }
+    const cover = (s.bulanCover && s.bulanCover.length) ? s.bulanCover : [];
+    if (cover.length === 0) return;
+    const bagianPerBulan = (s.jumlah||0) / cover.length;
+    cover.forEach(mk => {
+      if (mk.startsWith(String(selectedYear))){
+        const m = parseInt(mk.slice(5,7)) - 1;
+        monthlyTotals[m] += bagianPerBulan;
+      }
+    });
   });
   if (chartInstance) chartInstance.destroy();
   chartInstance = new Chart(ctx, {
@@ -459,7 +464,7 @@ function renderChart(){
     data: {
       labels: BULAN_NAMA,
       datasets: [{
-        label: 'Dana masuk',
+        label: 'Setoran',
         data: monthlyTotals,
         backgroundColor: '#B8863B',
         borderRadius: 4,

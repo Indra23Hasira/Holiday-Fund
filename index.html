@@ -103,15 +103,21 @@
     display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--ledger-red-bg);}
 
   /* ---------- RIWAYAT ---------- */
-  .riwayatItem{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--paper-line);}
+  .riwayatItem{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--paper-line);}
   .riwayatItem:last-child{border-bottom:none;}
-  .riwayatItem .left{flex:1;}
-  .riwayatItem .keluargaNama{font-weight:600;font-size:14px;color:var(--cover);}
-  .riwayatItem .meta{font-size:12px;color:#8a7f6d;margin-top:2px;}
+  .riwayatItem .left{flex:1;min-width:0;}
+  .riwayatItem .keluargaNama{font-weight:600;font-size:13.5px;color:var(--cover);}
+  .riwayatItem .meta{font-size:11.5px;color:#8a7f6d;margin-top:1px;}
+  .riwayatItem .right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
+  .riwayatItem .amount{font-weight:600;color:var(--ink);font-size:14px;white-space:nowrap;}
+  .riwayatItem .actionsInline{display:flex;gap:4px;}
+  .iconBtnSm{border:1px solid var(--paper-line);background:none;border-radius:4px;width:24px;height:24px;font-size:12px;color:#8a7f6d;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;}
+  .iconBtnSm:hover{background:var(--paper);}
+  .iconBtnSm.danger:hover{color:var(--ledger-red);border-color:var(--ledger-red);}
+  .riwayatMore{width:100%;text-align:center;padding:10px;margin-top:6px;background:none;border:1px dashed var(--paper-line);border-radius:6px;color:#6b6152;font-size:12.5px;font-weight:600;}
+  .riwayatMore:hover{background:var(--paper);}
   .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
   .chip{background:var(--sage-bg);color:var(--sage);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
-  .riwayatItem .amount{font-weight:600;color:var(--ink);font-size:15px;white-space:nowrap;}
-  .riwayatItem .actions{display:flex;gap:6px;margin-top:8px;}
   .iconBtn{border:1px solid var(--paper-line);background:none;border-radius:4px;padding:4px 9px;font-size:11.5px;color:#8a7f6d;}
   .iconBtn:hover{background:var(--paper);}
   .iconBtn.danger:hover{color:var(--ledger-red);border-color:var(--ledger-red);}
@@ -203,7 +209,10 @@
   <div class="section">
     <div class="sectionHead">
       <div><h2>Riwayat Setoran</h2><div class="sectionSub">Transaksi terbaru</div></div>
-      <button class="addBtn" id="btnKelolaKeluarga" style="background:var(--cover);">Kelola Keluarga</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="riwayatBulanFilter" style="padding:7px 10px;border-radius:4px;border:1px solid var(--paper-line);background:var(--paper-raised);font-size:13px;"></select>
+        <button class="addBtn" id="btnKelolaKeluarga" style="background:var(--cover);">Kelola Keluarga</button>
+      </div>
     </div>
     <div id="riwayatList"></div>
   </div>
@@ -368,6 +377,7 @@ function populateYearSelect(){
 }
 document.getElementById('yearSelect').addEventListener('change', (e) => {
   selectedYear = parseInt(e.target.value);
+  riwayatShowCount = 8;
   renderAll();
 });
 
@@ -482,13 +492,44 @@ function renderChart(){
   });
 }
 
+let riwayatShowCount = 8;
+let riwayatBulanFilter = 'all';
+
+function populateRiwayatBulanFilter(){
+  const sel = document.getElementById('riwayatBulanFilter');
+  if (sel.options.length) return; // populate once
+  let opts = `<option value="all">Semua Bulan</option>`;
+  BULAN_NAMA.forEach((nama, idx) => { opts += `<option value="${idx+1}">${nama}</option>`; });
+  sel.innerHTML = opts;
+  sel.addEventListener('change', (e) => {
+    riwayatBulanFilter = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+    riwayatShowCount = 8;
+    renderRiwayat();
+  });
+}
+
 function renderRiwayat(){
+  populateRiwayatBulanFilter();
   const wrap = document.getElementById('riwayatList');
-  if (setoranList.length === 0){
-    wrap.innerHTML = `<div class="emptyState">Belum ada setoran tercatat. Klik "+ Catat Setoran" untuk mulai.</div>`;
+  const filtered = setoranList.filter(s => {
+    const cover = s.bulanCover || [];
+    if (riwayatBulanFilter === 'all'){
+      return cover.some(mk => mk.startsWith(String(selectedYear)));
+    }
+    return cover.includes(monthKey(selectedYear, riwayatBulanFilter));
+  });
+
+  if (filtered.length === 0){
+    wrap.innerHTML = setoranList.length === 0
+      ? `<div class="emptyState">Belum ada setoran tercatat. Klik "+ Catat Setoran" untuk mulai.</div>`
+      : `<div class="emptyState">Belum ada setoran di ${riwayatBulanFilter==='all' ? 'tahun '+selectedYear : BULAN_NAMA[riwayatBulanFilter-1]+' '+selectedYear}.</div>`;
     return;
   }
-  wrap.innerHTML = setoranList.map(s => {
+
+  const visible = filtered.slice(0, riwayatShowCount);
+  const sisa = filtered.length - visible.length;
+
+  wrap.innerHTML = visible.map(s => {
     const k = keluargaList.find(k=>k.id===s.keluargaId);
     const namaK = k ? k.nama : '(keluarga dihapus)';
     const tgl = s.tanggalTerima ? s.tanggalTerima.split('-').reverse().join('/') : '-';
@@ -502,14 +543,19 @@ function renderRiwayat(){
           <div class="keluargaNama">${namaK}</div>
           <div class="meta">Diterima ${tgl}${s.catatan ? ' · '+s.catatan : ''}</div>
           <div class="chips">${chips}</div>
-          <div class="actions">
-            <button class="iconBtn" onclick="window.__editSetoran('${s.id}')">Edit</button>
-            <button class="iconBtn danger" onclick="window.__deleteSetoran('${s.id}')">Hapus</button>
+        </div>
+        <div class="right">
+          <div class="amount num">${formatRupiah(s.jumlah)}</div>
+          <div class="actionsInline">
+            <button class="iconBtnSm" title="Edit" onclick="window.__editSetoran('${s.id}')">✎</button>
+            <button class="iconBtnSm danger" title="Hapus" onclick="window.__deleteSetoran('${s.id}')">✕</button>
           </div>
         </div>
-        <div class="amount num">${formatRupiah(s.jumlah)}</div>
       </div>`;
-  }).join('');
+  }).join('') + (sisa > 0 ? `<button class="riwayatMore" id="btnRiwayatMore">Tampilkan ${Math.min(sisa,8)} lagi (${sisa} tersisa)</button>` : '');
+
+  const moreBtn = document.getElementById('btnRiwayatMore');
+  if (moreBtn) moreBtn.addEventListener('click', () => { riwayatShowCount += 8; renderRiwayat(); });
 }
 
 // ---------- MODAL: SETORAN ----------

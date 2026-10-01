@@ -90,7 +90,8 @@
   table.matrix{border-collapse:collapse;width:100%;min-width:760px;}
   table.matrix th, table.matrix td{border-bottom:1px solid var(--paper-line);padding:10px 8px;text-align:center;font-size:12.5px;}
   table.matrix th{color:#8a7f6d;font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.4px;}
-  table.matrix td.namaCell, table.matrix th.namaCell{text-align:left;font-family:'Fraunces',serif;font-size:14px;color:var(--ink);font-weight:500;padding-left:6px;position:sticky;left:0;background:var(--paper-raised);min-width:140px;}
+  table.matrix td.namaCell, table.matrix th.namaCell{text-align:left;font-family:'Fraunces',serif;font-size:14px;color:var(--ink);font-weight:500;padding-left:6px;position:sticky;left:0;background:var(--paper-raised);min-width:140px;z-index:2;box-shadow:2px 0 4px -2px rgba(43,36,32,.15);}
+  table.matrix th.namaCell{z-index:3;}
   table.matrix tr:hover td{background:#FAF6EC;}
   table.matrix tr:hover td.namaCell{background:#F2EBDA;}
 
@@ -265,8 +266,9 @@
     </div>
     <div id="keluargaListWrap" style="margin-bottom:18px;"></div>
     <form id="formKeluarga">
+      <input type="hidden" id="editKeluargaId" value="">
       <div class="field">
-        <label>Nama keluarga baru</label>
+        <label id="labelNamaKeluarga">Nama keluarga baru</label>
         <input type="text" id="fNamaKeluarga" placeholder="mis. Keluarga Budi &amp; Rani" required>
       </div>
       <div class="field">
@@ -274,8 +276,9 @@
         <input type="number" id="fIuranKeluarga" value="200000" min="0" step="10000" required>
       </div>
       <div class="modalActions">
+        <button type="button" class="btnGhost" id="btnBatalEditKeluarga" style="display:none;">Batal Edit</button>
         <button type="button" class="btnGhost" id="btnTutupKeluarga">Tutup</button>
-        <button type="submit" class="btnPrimary">Tambah Keluarga</button>
+        <button type="submit" class="btnPrimary" id="btnSubmitKeluarga">Tambah Keluarga</button>
       </div>
     </form>
   </div>
@@ -652,10 +655,11 @@ window.__deleteSetoran = async (id) => {
 // ---------- MODAL: KELUARGA ----------
 const modalKeluarga = document.getElementById('modalKeluarga');
 document.getElementById('btnKelolaKeluarga').addEventListener('click', () => {
+  batalEditKeluarga();
   renderKeluargaManageList();
   modalKeluarga.style.display = 'flex';
 });
-document.getElementById('btnTutupKeluarga').addEventListener('click', () => modalKeluarga.style.display='none');
+document.getElementById('btnTutupKeluarga').addEventListener('click', () => { batalEditKeluarga(); modalKeluarga.style.display='none'; });
 
 function renderKeluargaManageList(){
   const wrap = document.getElementById('keluargaListWrap');
@@ -669,9 +673,34 @@ function renderKeluargaManageList(){
         <div class="keluargaNama" style="font-size:13.5px;">${k.nama}</div>
         <div class="meta">Iuran ${formatRupiah(k.iuran||200000)}/bulan</div>
       </div>
-      <button class="iconBtn danger" onclick="window.__deleteKeluarga('${k.id}')">Hapus</button>
+      <div style="display:flex;gap:6px;">
+        <button class="iconBtn" onclick="window.__editKeluarga('${k.id}')">Edit</button>
+        <button class="iconBtn danger" onclick="window.__deleteKeluarga('${k.id}')">Hapus</button>
+      </div>
     </div>`).join('');
 }
+
+window.__editKeluarga = (id) => {
+  const k = keluargaList.find(x=>x.id===id);
+  if (!k) return;
+  document.getElementById('editKeluargaId').value = id;
+  document.getElementById('fNamaKeluarga').value = k.nama;
+  document.getElementById('fIuranKeluarga').value = k.iuran || 200000;
+  document.getElementById('labelNamaKeluarga').textContent = 'Nama keluarga';
+  document.getElementById('btnSubmitKeluarga').textContent = 'Simpan Perubahan';
+  document.getElementById('btnBatalEditKeluarga').style.display = 'inline-block';
+  document.getElementById('fNamaKeluarga').focus();
+};
+
+function batalEditKeluarga(){
+  document.getElementById('formKeluarga').reset();
+  document.getElementById('editKeluargaId').value = '';
+  document.getElementById('fIuranKeluarga').value = 200000;
+  document.getElementById('labelNamaKeluarga').textContent = 'Nama keluarga baru';
+  document.getElementById('btnSubmitKeluarga').textContent = 'Tambah Keluarga';
+  document.getElementById('btnBatalEditKeluarga').style.display = 'none';
+}
+document.getElementById('btnBatalEditKeluarga').addEventListener('click', batalEditKeluarga);
 
 document.getElementById('btnSimpanBulanMulai').addEventListener('click', async () => {
   const val = document.getElementById('fBulanMulai').value; // "YYYY-MM" or ""
@@ -684,12 +713,17 @@ document.getElementById('formKeluarga').addEventListener('submit', async (e) => 
   const nama = document.getElementById('fNamaKeluarga').value.trim();
   const iuran = parseInt(document.getElementById('fIuranKeluarga').value);
   if (!nama) return;
-  const urutan = keluargaList.length ? Math.max(...keluargaList.map(k=>k.urutan||0)) + 1 : 1;
-  await addDoc(collection(db,'keluarga'), { nama, iuran, urutan });
-  document.getElementById('formKeluarga').reset();
-  document.getElementById('fIuranKeluarga').value = 200000;
+  const editId = document.getElementById('editKeluargaId').value;
+  if (editId){
+    await updateDoc(doc(db,'keluarga',editId), { nama, iuran });
+    showToast('Keluarga diperbarui.');
+  } else {
+    const urutan = keluargaList.length ? Math.max(...keluargaList.map(k=>k.urutan||0)) + 1 : 1;
+    await addDoc(collection(db,'keluarga'), { nama, iuran, urutan });
+    showToast('Keluarga ditambahkan.');
+  }
+  batalEditKeluarga();
   renderKeluargaManageList();
-  showToast('Keluarga ditambahkan.');
 });
 
 window.__deleteKeluarga = async (id) => {
